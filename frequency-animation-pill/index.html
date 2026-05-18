@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topper — Amount Selection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,700;0,800&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Design tokens (verbatim from Figma) ───────────────────────────── */
+    :root {
+      --bg-main:          #090d14;
+      --bg-l1:            #141c29;   /* --background/level-1        */
+      --bg-l2:            #1d2738;
+      --border:           #35415f;   /* --border/default            */
+      --green:            #84fb7f;   /* --action/primary/default    */
+      --on-green:         #001f02;   /* --content/on/primary        */
+      --emph:             #f0f2fa;   /* --content/emphasis          */
+      --default:          #d5d7e7;   /* --content/default           */
+      --subdued:          #8897bf;   /* --content/subdued           */
+      --neutral-soft:     rgba(53,65,95,.30);
+      --overlay:          rgba(0,0,0,.80);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Proxima Nova', 'Plus Jakarta Sans', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      gap: 24px;
+    }
+
+    /* ─── Prototype state badge ──────────────────────────────────────────── */
+    .state-badge {
+      display: flex; gap: 8px; align-items: center;
+      font-size: 11px; font-weight: 700; letter-spacing: .06em;
+      text-transform: uppercase; color: var(--subdued);
+    }
+    .state-badge span {
+      background: var(--bg-l2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 4px 8px;
+      color: var(--emph); transition: border-color .15s, color .15s;
+    }
+    .state-badge span.active { border-color: var(--green); color: var(--green); }
+
+    /* ─── Widget — the phone screen ─────────────────────────────────────── */
+    /* Figma: bg #141c29, rounded-[48px], p-[32px], flex-col, justify-between */
+    .widget {
+      position: relative;
+      width: 470px;
+      min-height: 810px;
+      background: var(--bg-l1);
+      border-radius: 48px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* ─── Body (top section: navbar + main + asset card) ────────────────── */
+    /* Figma: flex-col, gap-[40px] */
+    .body {
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+      flex-shrink: 0;
+    }
+
+    /* ─── Navbar ─────────────────────────────────────────────────────────── */
+    /* Figma: h-[40px], overflow-clip, flex, items-center, justify-center */
+    .navbar {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .logo-lockup { display: flex; flex-direction: column; line-height: 1; }
+    .logo-name   { font-size: 14px; font-weight: 800; color: var(--emph); letter-spacing: -.01em; }
+    .logo-by     { font-size: 9px; font-weight: 600; color: var(--subdued); text-transform: uppercase; letter-spacing: .1em; margin-top: 2px; }
+
+    /* Menu icon button (right-absolute) */
+    .icon-btn {
+      position: absolute; right: 0;
+      width: 40px; height: 40px;
+      border-radius: 32px;
+      background: var(--neutral-soft);
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ─── Main (header + amount + quick fills) ───────────────────────────── */
+    /* Figma: flex-col, gap-[16px] */
+    .main {
+      display: flex; flex-direction: column; gap: 16px;
+    }
+
+    /* ─── Top (header-operators + amount) ───────────────────────────────── */
+    /* Figma: flex-col, gap-[24px], items-center */
+    .top {
+      display: flex; flex-direction: column; gap: 24px; align-items: center;
+    }
+
+    /* ─── Header operators row ───────────────────────────────────────────── */
+    /* Figma: flex, h-[32px], items-start, justify-between, w-full */
+    .header-ops {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      width: 100%;
+      height: 32px;
+    }
+
+    /* Left pills group */
+    .left-ops { display: flex; align-items: center; gap: 8px; }
+
+    /* ─── Pill — reused by "Buy" and "Once" ─────────────────────────────── */
+    /* Figma: border border-[#35415f], rounded-[9999px], h-[32px]           */
+    /*        pl-[12px] pr-[8px] py-[8px], gap-[4px], text 13px bold #f0f2fa */
+    .pill {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      height: 32px;
+      padding: 8px 8px 8px 12px;  /* top right bottom left */
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 16px;
+      color: var(--emph);
+      white-space: nowrap;
+      cursor: pointer;
+      font-family: inherit;
+      transition: border-color .15s;
+      flex-shrink: 0;
+    }
+    .pill:hover { border-color: rgba(240,242,250,.30); }
+
+    /* "Once" pill gets a green tint when recurring */
+    .pill.recurring { border-color: rgba(132,251,127,.5); }
+
+    .pill .pill-icon {
+      width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .pill .caret {
+      width: 16px; height: 16px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ─── Currency pill ──────────────────────────────────────────────────── */
+    /* Figma: border border-[#35415f], rounded-[16px], p-[8px], items-start  */
+    .currency {
+      display: flex; align-items: center; gap: 8px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 8px;
+      cursor: pointer;
+      transition: border-color .15s;
+      flex-shrink: 0;
+    }
+    .currency:hover { border-color: rgba(240,242,250,.25); }
+    .flag-wrap {
+      width: 16px; height: 16px; border-radius: 50%; overflow: hidden;
+      font-size: 14px; line-height: 14px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ─── Amount display ─────────────────────────────────────────────────── */
+    /* Figma: desktop/display/d1 — Proxima Nova Bold 68/80, center           */
+    .amount-display {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+    }
+    .amount-prefix {
+      /* Figma: desktop/paragraph/p1-strong — 17px/24px */
+      font-size: 17px; font-weight: 700; line-height: 24px;
+      color: var(--emph);
+    }
+    .amount-value {
+      font-size: 68px; font-weight: 700; line-height: 80px;
+      color: var(--emph);
+    }
+
+    /* ─── Quick fills ────────────────────────────────────────────────────── */
+    /* Figma: flex, gap-[16px], justify-center, each pill w-[75px]/w-[76px]  */
+    .quickfills {
+      display: flex; gap: 16px; justify-content: center; width: 100%;
+    }
+    .qf-pill {
+      width: 75px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border); border-radius: 9999px;
+      background: transparent; cursor: pointer; font-family: inherit;
+      font-size: 13px; font-weight: 700; line-height: 16px;
+      color: var(--emph); transition: border-color .15s, background .15s;
+      flex-shrink: 0;
+    }
+    .qf-pill:last-child { width: 76px; }
+    .qf-pill:hover { border-color: rgba(240,242,250,.3); background: rgba(255,255,255,.04); }
+
+    /* ─── Asset card ("You buy") ─────────────────────────────────────────── */
+    /* Figma: border border-[#35415f], rounded-[16px], p-[16px], flex-col gap-[4px] */
+    .asset-card {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    /* Label row */
+    .asset-label-row { display: flex; align-items: center; gap: 4px; }
+    .asset-label {
+      font-size: 13px; font-weight: 700; line-height: 16px;
+      color: var(--subdued);
+    }
+    /* Value row */
+    .asset-value-row {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 24px;
+    }
+    /* Amount + spinner */
+    .asset-amount {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 15px; font-weight: 700; line-height: 20px;
+      color: var(--default);
+    }
+    /* Asset selector (right) */
+    .asset-selector {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+    }
+    .btc-icon {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #f7931a;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .asset-ticker {
+      font-size: 15px; font-weight: 400; line-height: 20px;
+      color: var(--emph);
+    }
+
+    /* ─── Loader spinner ─────────────────────────────────────────────────── */
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .spinner { animation: spin 1.1s linear infinite; transform-origin: center; display: block; }
+
+    /* ─── Pill pulse (Once pill, on mount, 3× then stop) ─────────────────── */
+    /* Figma: border pulses #35415f → #84fb7f → #35415f                       */
+    @keyframes pill-pulse {
+      0%, 100% { border-color: #35415f; }
+      50%       { border-color: #84fb7f; }
+    }
+    .pill-pulse {
+      animation: pill-pulse 1.4s ease-in-out 3 both;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pill-pulse { animation: none !important; }
+    }
+
+    /* ─── Footer ─────────────────────────────────────────────────────────── */
+    .footer {
+      display: flex; flex-direction: column; gap: 0; flex-shrink: 0;
+    }
+
+    /* Figma: linear-gradient(0deg, #141c29 0%, …, transparent 100%), h-[16px] */
+    .footer-gradient {
+      height: 16px; width: 100%;
+      background: linear-gradient(
+        0deg,
+        #141c29 0%,
+        rgba(20,28,41,.95) 33.333%,
+        rgba(20,28,41,.75) 66.667%,
+        rgba(20,28,41,0)   100%
+      );
+    }
+
+    /* ─── CTA button ─────────────────────────────────────────────────────── */
+    /* Figma: bg #84fb7f, rounded-[32px], px-[16px] py-[20px], 17px bold #001f02 */
+    .cta-btn {
+      width: 100%;
+      background: var(--green);
+      border: none; border-radius: 32px;
+      padding: 20px 16px;
+      font-size: 17px; font-weight: 700; line-height: 24px;
+      color: var(--on-green); text-align: center;
+      cursor: pointer; font-family: inherit;
+      transition: filter .15s;
+    }
+    .cta-btn:hover  { filter: brightness(1.07); }
+    .cta-btn:active { filter: brightness(.95); }
+
+    /* ─── Overlay shared base ────────────────────────────────────────────── */
+    .overlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      pointer-events: none; opacity: 0;
+      transition: opacity .2s ease;
+    }
+    .overlay.visible { pointer-events: all; opacity: 1; }
+    .overlay-dim { position: absolute; inset: 0; background: var(--overlay); }
+    .sheet {
+      position: relative;
+      background: var(--bg-l2);
+      border-radius: 32px 32px 0 0;
+      padding: 40px 32px 32px;
+      display: flex; flex-direction: column; gap: 24px;
+      transform: translateY(20px);
+      transition: transform .25s ease;
+    }
+    .overlay.visible .sheet { transform: translateY(0); }
+    .sheet-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+    }
+    .sheet-title {
+      font-size: 24px; font-weight: 700; line-height: 32px; color: #f7f8fc;
+    }
+    .close-btn {
+      width: 40px; height: 40px; border-radius: 32px;
+      background: var(--neutral-soft); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ─── Confirm overlay ────────────────────────────────────────────────── */
+    .confirm-desc {
+      font-size: 17px; font-weight: 400; line-height: 26px; color: var(--default);
+    }
+    .confirm-btn {
+      width: 100%; background: var(--green); border: none; border-radius: 32px;
+      padding: 20px 16px; font-size: 17px; font-weight: 700; line-height: 24px;
+      color: var(--on-green); text-align: center; cursor: pointer;
+      font-family: inherit; transition: filter .15s;
+    }
+    .confirm-btn:hover { filter: brightness(1.07); }
+
+    /* ─── Frequency sheet ────────────────────────────────────────────────── */
+    .freq-options { display: flex; flex-direction: column; gap: 16px; }
+    .freq-option {
+      display: flex; align-items: flex-start; gap: 16px;
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 16px; background: transparent; cursor: pointer;
+      font-family: inherit; text-align: left; width: 100%;
+      transition: border-color .15s;
+    }
+    .freq-option.active { border-color: var(--green); }
+    .freq-option:hover:not(.active) { border-color: rgba(240,242,250,.25); }
+    .freq-radio {
+      width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; margin-top: 2px;
+      border: 2px solid var(--border);
+    }
+    .freq-option.active .freq-radio {
+      background: radial-gradient(circle, var(--green) 40%, transparent 42%);
+      border: 6px solid var(--green);
+    }
+    .freq-option-text { display: flex; flex-direction: column; gap: 4px; }
+    .freq-option-label { font-size: 15px; font-weight: 400; color: var(--default); }
+    .freq-option-desc  { font-size: 13px; font-weight: 400; color: var(--subdued); }
+
+    /* ─── Action (Buy/Sell) sheet ────────────────────────────────────────── */
+    .action-options { display: flex; flex-direction: column; gap: 16px; }
+    .action-option {
+      display: flex; align-items: center; gap: 16px;
+      border: 1px solid var(--border); border-radius: 16px;
+      padding: 16px; background: transparent; cursor: pointer;
+      font-family: inherit; text-align: left; width: 100%;
+      transition: border-color .15s;
+    }
+    .action-option.active { border-color: var(--green); }
+    .action-option:hover:not(.active) { border-color: rgba(240,242,250,.25); }
+    .action-radio {
+      width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid var(--border);
+    }
+    .action-option.active .action-radio {
+      background: radial-gradient(circle, var(--green) 40%, transparent 42%);
+      border: 6px solid var(--green);
+    }
+    .action-option-label { font-size: 15px; font-weight: 400; color: var(--default); }
+  </style>
+</head>
+<body>
+
+  <div class="widget">
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- BODY — scrolls with content; pushed against footer via flex       -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="body">
+
+      <!-- ── Navbar ──────────────────────────────────────────────────────── -->
+      <!-- Figma: h-[40px], overflow-clip, logo centered via Builder asset  -->
+      <nav class="navbar">
+        <!-- Logo: imgFrame1276 — 162×28.295px, centered -->
+        <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:180px;height:40px;">
+          <img
+            src="https://www.figma.com/api/mcp/asset/2b293a75-e128-416d-9ebb-f95d2f17ea82"
+            alt="Topper by Uphold"
+            style="position:absolute;left:50%;top:calc(50% - 0.25px);transform:translate(-50%,-50%);width:162px;height:28.295px;display:block;"
+          >
+        </div>
+        <!-- Menu button: imgUnion4, 40×40 rounded button, right-0 -->
+        <button class="icon-btn" aria-label="Menu">
+          <div style="position:relative;width:24px;height:24px;overflow:hidden;">
+            <img
+              src="https://www.figma.com/api/mcp/asset/6b09aee4-72f4-4511-b753-de021056fb8f"
+              alt=""
+              style="position:absolute;inset:16.67% 8.33%;width:83.34%;height:66.66%;display:block;"
+            >
+          </div>
+        </button>
+      </nav>
+
+      <!-- ── Main ────────────────────────────────────────────────────────── -->
+      <div class="main">
+
+        <!-- Top: header-operators + amount -->
+        <div class="top">
+
+          <!-- Header operators row -->
+          <div class="header-ops">
+
+            <!-- Left pills: Buy ▾ and ↻ Once ▾ -->
+            <div class="left-ops">
+
+              <!-- Action pill: "Buy ▾" -->
+              <button class="pill" id="action-pill">
+                <span id="action-pill-label">Buy</span>
+                <!-- caret down -->
+                <span class="caret">
+                  <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                    <path d="M1 1l4 4 4-4" stroke="#f0f2fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+
+              <!-- Frequency pill: "↻ Once ▾" -->
+              <button class="pill" id="freq-pill">
+                <!-- refresh-reverse icon from Figma: 16×16, inset 7.81% -->
+                <span class="pill-icon" style="position:relative;overflow:hidden;">
+                  <img
+                    src="https://www.figma.com/api/mcp/asset/46d95144-5fd7-45a3-b9cc-7ff67a23c89a"
+                    alt=""
+                    style="position:absolute;inset:7.81%;width:84.38%;height:84.38%;display:block;object-fit:contain;"
+                  >
+                </span>
+                <span id="freq-pill-label">Once</span>
+                <!-- caret down -->
+                <span class="caret">
+                  <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                    <path d="M1 1l4 4 4-4" stroke="#f0f2fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+
+            </div><!-- /left-ops -->
+
+            <!-- Currency pill: 🇺🇸 ▾ -->
+            <div class="currency">
+              <span class="flag-wrap">🇺🇸</span>
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+                <path d="M1 1l4 4 4-4" stroke="#f0f2fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+
+          </div><!-- /header-ops -->
+
+          <!-- Amount: $ 300 -->
+          <div class="amount-display">
+            <span class="amount-prefix">$</span>
+            <span class="amount-value">300</span>
+          </div>
+
+        </div><!-- /top -->
+
+        <!-- Quick fills -->
+        <div class="quickfills">
+          <button class="qf-pill">$50</button>
+          <button class="qf-pill">$100</button>
+          <button class="qf-pill">$250</button>
+          <button class="qf-pill">$500</button>
+        </div>
+
+      </div><!-- /main -->
+
+      <!-- ── Asset card ──────────────────────────────────────────────────── -->
+      <div class="asset-card">
+
+        <!-- Label row -->
+        <div class="asset-label-row">
+          <span class="asset-label" id="asset-label">You buy</span>
+          <!-- circle-info icon -->
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <circle cx="6" cy="6" r="5.5" stroke="#8897bf"/>
+            <path d="M6 5.25v3.5M6 3.25v.5" stroke="#8897bf" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <!-- Value row -->
+        <div class="asset-value-row">
+
+          <!-- Amount + spinning loader -->
+          <div class="asset-amount">
+            <span>0.00113838</span>
+            <!-- spinning loader (12×12) -->
+            <svg class="spinner" width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="6" cy="6" r="4.5" stroke="#d5d7e7" stroke-width="1.3" stroke-linecap="round"
+                stroke-dasharray="14 10" opacity=".55"/>
+            </svg>
+          </div>
+
+          <!-- Asset selector: BTC icon + ticker + caret -->
+          <div class="asset-selector">
+            <div class="btc-icon">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M4 3h4.5a2 2 0 0 1 0 4H4V3Z" fill="white"/>
+                <path d="M4 7h5a2 2 0 0 1 0 4H4V7Z" fill="white"/>
+                <rect x="5.5" y="2" width="1" height="10" rx=".5" fill="white"/>
+                <rect x="7.5" y="2" width="1" height="10" rx=".5" fill="white"/>
+                <rect x="5.5" y="1" width="1" height="2" rx=".5" fill="white"/>
+                <rect x="7.5" y="1" width="1" height="2" rx=".5" fill="white"/>
+                <rect x="5.5" y="11" width="1" height="2" rx=".5" fill="white"/>
+                <rect x="7.5" y="11" width="1" height="2" rx=".5" fill="white"/>
+              </svg>
+            </div>
+            <span class="asset-ticker">BTC</span>
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none">
+              <path d="M1 1l4 4 4-4" stroke="#f0f2fa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+
+        </div>
+      </div><!-- /asset-card -->
+
+    </div><!-- /body -->
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- FOOTER — pinned to bottom via justify-between on .widget          -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <div class="footer">
+      <div class="footer-gradient"></div>
+      <div style="background: var(--bg-l1);">
+        <button class="cta-btn" id="cta-btn">Buy BTC</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- OVERLAYS (sit above content inside the widget)                    -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Confirmation sheet -->
+    <div class="overlay" id="confirm-overlay">
+      <div class="overlay-dim" id="confirm-dim"></div>
+      <div class="sheet" style="gap: 32px;">
+        <div class="sheet-header">
+          <h2 class="sheet-title">Confirm your order</h2>
+          <button class="close-btn" id="confirm-close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1l12 12M13 1L1 13" stroke="#f0f2fa" stroke-width="1.75" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <p class="confirm-desc" id="confirm-desc"></p>
+        <button class="confirm-btn">Confirm</button>
+      </div>
+    </div>
+
+    <!-- Frequency sheet -->
+    <div class="overlay" id="freq-overlay">
+      <div class="overlay-dim" id="freq-dim"></div>
+      <div class="sheet">
+        <div class="sheet-header">
+          <h2 class="sheet-title">Order frequency</h2>
+          <button class="close-btn" id="freq-close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1l12 12M13 1L1 13" stroke="#f0f2fa" stroke-width="1.75" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="freq-options">
+          <button class="freq-option" data-freq="once">
+            <div class="freq-radio"></div>
+            <div class="freq-option-text">
+              <span class="freq-option-label">Once</span>
+              <span class="freq-option-desc">One-time purchase, just today.</span>
+            </div>
+          </button>
+          <button class="freq-option" data-freq="weekly">
+            <div class="freq-radio"></div>
+            <div class="freq-option-text">
+              <span class="freq-option-label">Weekly</span>
+              <span class="freq-option-desc">Every Thursday, once a week.</span>
+            </div>
+          </button>
+          <button class="freq-option" data-freq="monthly">
+            <div class="freq-radio"></div>
+            <div class="freq-option-text">
+              <span class="freq-option-label">Monthly</span>
+              <span class="freq-option-desc">Every 30th, once a month.</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action (Buy / Sell) sheet -->
+    <div class="overlay" id="action-overlay">
+      <div class="overlay-dim" id="action-dim"></div>
+      <div class="sheet">
+        <div class="sheet-header">
+          <h2 class="sheet-title">Order type</h2>
+          <button class="close-btn" id="action-close">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M1 1l12 12M13 1L1 13" stroke="#f0f2fa" stroke-width="1.75" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="action-options">
+          <button class="action-option" data-action="buy">
+            <div class="action-radio"></div>
+            <span class="action-option-label">Buy</span>
+          </button>
+          <button class="action-option" data-action="sell">
+            <div class="action-radio"></div>
+            <span class="action-option-label">Sell</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /widget -->
+
+  <script>
+    const state = { action: 'buy', frequency: 'once' };
+
+    const CONFIRM_TEXT = {
+      buy: {
+        once:    "You're buying $300 of BTC — one-time purchase. This will execute immediately after confirmation.",
+        weekly:  "You're buying $300 of BTC every week. This recurring order will execute on your schedule. You can cancel anytime from Recurring Orders.",
+        monthly: "You're buying $300 of BTC every month. This recurring order will execute on your schedule. You can cancel anytime from Recurring Orders.",
+      },
+      sell: "You're selling 0.00113838 BTC (est. $300). This will execute immediately after confirmation.",
+    };
+
+    // ── Sheet helpers ──────────────────────────────────────────────────────
+    function openOverlay(id)  { document.getElementById(id).classList.add('visible'); }
+    function closeOverlay(id) { document.getElementById(id).classList.remove('visible'); }
+
+    // ── Action pill → open action sheet ───────────────────────────────────
+    document.getElementById('action-pill').addEventListener('click', () => openOverlay('action-overlay'));
+    document.getElementById('action-close').addEventListener('click', () => closeOverlay('action-overlay'));
+    document.getElementById('action-dim').addEventListener('click',   () => closeOverlay('action-overlay'));
+
+    document.querySelectorAll('.action-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.action = btn.dataset.action;
+        closeOverlay('action-overlay');
+        render();
+      });
+    });
+
+    // ── Frequency pill → open freq sheet ──────────────────────────────────
+    document.getElementById('freq-pill').addEventListener('click', () => openOverlay('freq-overlay'));
+    document.getElementById('freq-close').addEventListener('click', () => closeOverlay('freq-overlay'));
+    document.getElementById('freq-dim').addEventListener('click',   () => closeOverlay('freq-overlay'));
+
+    document.querySelectorAll('.freq-option').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.frequency = btn.dataset.freq;
+        closeOverlay('freq-overlay');
+        render();
+      });
+    });
+
+    // ── CTA → confirm sheet ────────────────────────────────────────────────
+    document.getElementById('cta-btn').addEventListener('click', () => {
+      const desc = state.action === 'sell'
+        ? CONFIRM_TEXT.sell
+        : CONFIRM_TEXT.buy[state.frequency];
+      document.getElementById('confirm-desc').textContent = desc;
+      openOverlay('confirm-overlay');
+    });
+    document.getElementById('confirm-close').addEventListener('click', () => closeOverlay('confirm-overlay'));
+    document.getElementById('confirm-dim').addEventListener('click',   () => closeOverlay('confirm-overlay'));
+
+    // ── Render ─────────────────────────────────────────────────────────────
+    function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    function render() {
+      const isBuy = state.action === 'buy';
+
+      // Action pill label
+      document.getElementById('action-pill-label').textContent = cap(state.action);
+
+      // Frequency pill: label + recurring border tint
+      const freqLabel = state.frequency === 'once' ? 'Once' : cap(state.frequency);
+      document.getElementById('freq-pill-label').textContent = freqLabel;
+      document.getElementById('freq-pill').classList.toggle('recurring', state.frequency !== 'once');
+
+      // Freq pill hidden on Sell (no recurring sell in Figma design)
+      document.getElementById('freq-pill').style.display = isBuy ? 'flex' : 'none';
+
+      // Freq options active state
+      document.querySelectorAll('.freq-option').forEach(p =>
+        p.classList.toggle('active', p.dataset.freq === state.frequency)
+      );
+
+      // Action options active state
+      document.querySelectorAll('.action-option').forEach(p =>
+        p.classList.toggle('active', p.dataset.action === state.action)
+      );
+
+      // Asset card label + CTA label
+      document.getElementById('asset-label').textContent = isBuy ? 'You buy' : 'You sell';
+      document.getElementById('cta-btn').textContent = isBuy ? 'Buy BTC' : 'Sell BTC';
+
+      closeOverlay('confirm-overlay');
+    }
+
+    render();
+
+    // Pulse the "Once" pill after a short delay so it plays after page paint
+    setTimeout(() => {
+      const freqPill = document.getElementById('freq-pill');
+      freqPill.classList.add('pill-pulse');
+      freqPill.addEventListener('animationend', () => freqPill.classList.remove('pill-pulse'), { once: true });
+    }, 500);
+  </script>
+</body>
+</html>
